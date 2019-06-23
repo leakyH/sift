@@ -6,7 +6,7 @@
 %   British Columbia.  For more information, refer to the file LICENSE
 %   that accompanied this distribution.
 
-function [feat_index] = addOriFeatures(ddata_index,feat_index,ddata,hist)
+function [feat_index] = addOriFeatures(extreme_index,feat_index,ddata,hist)
 % Function: Add good orientation for keypoints
 global features;
 global base_sigma;
@@ -24,7 +24,7 @@ for i = 1:ori_hist_bins
         bin = i + interp_hist_peak(hist(k),hist(i),hist(r))-1;%需要表达为[0-36)浮点数
         bin=mod(bin,36);
         accu_layer = ddata.layer + ddata.x_hat(3);
-        features(feat_index).ddata_index = ddata_index;
+        features(feat_index).extreme_index = extreme_index;
         % first octave is double size
         features(feat_index).x = (ddata.x + ddata.x_hat(1))*2^(ddata.octv-2);
         features(feat_index).y = (ddata.y + ddata.x_hat(2))*2^(ddata.octv-2);
@@ -35,15 +35,6 @@ for i = 1:ori_hist_bins
     end
 end
 end
-
-% function [omax] = dominantOri(hist,ori_hist_bins)
-%     omax = hist(1);
-%     for i = 2:ori_hist_bins
-%         if(hist(i) > omax)
-%             omax = hist(i);
-%         end
-%     end
-% end
 
 function [position] = interp_hist_peak(p,c,r)
     position = 0.5*(p-r)/(p-2*c+r);

@@ -1,5 +1,7 @@
-input=im2double(imread('lena.bmp'));
+%input=im2double(imread('lena.bmp'));
+input=rgb2gray(im2double(imread('Iris.tif')));
 %only gray images
+%input=imrotate(imresize(input,0.8),60,'bilinear','crop');
 setglobal();
 global base_sigma;
 global layer_para;
@@ -15,43 +17,40 @@ for octave=1:scale_para
         sigma_matrix(octave,layer)=base_sigma.*2^(octave-1)*sigma_rate_k^(layer-1);
     end
 end
+%sigma矩阵构建完成
 
 [W,L,~]=size(input);
 image_bundle=cell(1,scale_para);
 image_bundle{1}=imresize(input,2);
-% for scale=3:scale_para
-%     image_bundle{scale}=mydownsample(input,[2*(scale-2),2*(scale-2)]);
-% end
 Gaussian_pyr=cell(1,scale_para);
 DOG_pyr=cell(1,scale_para);
 
-
 for octave=1:scale_para
-    gauss_bundle=zeros(W/(2^(octave-2)),L/(2^(octave-2)),layer_para+3);
-    DOG_bundle=zeros(W/(2^(octave-2)),L/(2^(octave-2)),layer_para+2);
     image_scale=image_bundle{octave};
+    gauss_bundle=zeros([size(image_scale),layer_para+3]);
+    DOG_bundle=zeros([size(image_scale),layer_para+2]);
     gauss_bundle(:,:,1)=image_scale;
     for i=2:layer_para+3
-        gauss_bundle(:,:,i)=imgaussfilt(image_scale,sigma_matrix(octave,i));
+        gauss_bundle(:,:,i)=imgaussfilt(image_scale,sigma_matrix(octave,i));%高斯滤波
     end
-    DOG_pyr{octave}=gauss_bundle(:,:,1:layer_para+2)-gauss_bundle(:,:,2:layer_para+3);
+    DOG_pyr{octave}=gauss_bundle(:,:,1:layer_para+2)-gauss_bundle(:,:,2:layer_para+3);%差分
     Gaussian_pyr{octave}=gauss_bundle;
-    image_bundle{octave+1}=imresize(gauss_bundle(:,:,layer_para+1),0.5);
+    image_bundle{octave+1}=imresize(gauss_bundle(:,:,layer_para+1),0.5);%根据上一个octave的倒数第三张图下采样
 end
 %DOG构建完成
 
 
-%% Accurate Keypoint Localization
-% width of border in which to ignore keypoints
+%% 关键点的精确定位
+% 忽略图像边缘的点
 img_border = 5;
-% low threshold on feature contrast
-contr_thr = 0.03;
+% 特征点对比度阈值
+contr_thr = 0.015;
 % high threshold on feature ratio of principal curvatures
-curv_thr = 10;
-prelim_contr_thr = 0.5*contr_thr;%为什么/layer_para
-global ddata_array
-ddata_array = struct('x',0,'y',0,'octv',0,'layer',0,'x_hat',[0,0,0],'scl_octv',0);
-ddata_index = 1;
+curv_thr = 5;
+prelim_contr_thr = 0.5*contr_thr;
+global extreme_array
+extreme_array = struct('x',0,'y',0,'octv',0,'layer',0,'x_hat',[0,0,0],'scl_octv',0);
+extreme_index = 1;
 for i = 1:scale_para
     dog_imgs = DOG_pyr{i};
     [height, width] = size(dog_imgs(:,:,1));
@@ -73,11 +72,11 @@ for i = 1:scale_para
                             flag_MAXorMIN = 0;
                         end
                     if(flag_MAXorMIN)
-                        ddata = interpLocation(dog_imgs,height,width,i,j,x,y,img_border,contr_thr);
-                        if(~isempty(ddata))
-                            if(~isEdgeLike(dog_img,ddata.x,ddata.y,curv_thr))
-                                 ddata_array(ddata_index) = ddata;
-                                 ddata_index = ddata_index + 1;
+                        extreme = interpLocation(dog_imgs,height,width,i,j,x,y,img_border,contr_thr);
+                        if(~isempty(extreme))
+                            if(~isEdgeLike(dog_img,extreme.x,extreme.y,curv_thr))
+                                 extreme_array(extreme_index) = extreme;
+                                 extreme_index = extreme_index + 1;
                             end
                         end
                     end
@@ -89,7 +88,7 @@ end
 
 %% 旋转不变性
 % number of detected points
-n = size(ddata_array,2);
+n = size(extreme_array,2);
 % determines gaussian sigma for orientation assignment
 ori_sig_factr = 1.5;
 % number of bins in histogram
@@ -97,13 +96,13 @@ global ori_hist_bins
 % orientation magnitude relative to max that results in new feature
 % array of feature
 global features;
-features = struct('ddata_index',0,'x',0,'y',0,'scl',0,'ori',0,'descr',[],'weight',0);
+features = struct('extreme_index',0,'x',0,'y',0,'scl',0,'ori',0,'descr',[],'weight',0);
 feat_index = 1;
 for i = 1:n
-    ddata = ddata_array(i);
-    ori_sigma = ori_sig_factr * ddata.scl_octv;
+    extreme = extreme_array(i);
+    ori_sigma = ori_sig_factr * extreme.scl_octv;
     % generate a histogram for the gradient distribution around a keypoint
-    hist = oriHist(Gaussian_pyr{ddata.octv}(:,:,ddata.layer),ddata.x,ddata.y,ori_hist_bins,round(3*ori_sigma),ori_sigma);
+    hist = oriHist(Gaussian_pyr{extreme.octv}(:,:,extreme.layer),extreme.x,extreme.y,ori_hist_bins,round(3*ori_sigma),ori_sigma);
     for k = 1:ori_hist_bins
     hist(k) = 1/16*hist(mod(k-3,ori_hist_bins)+1)...
         + 1/4*hist(mod(k-2,ori_hist_bins)+1)...
@@ -111,9 +110,9 @@ for i = 1:n
         + 1/4*hist(mod(k,ori_hist_bins)+1)...
         +1/16*hist(mod(k+1,ori_hist_bins)+1);
     end
-    % generate feature from ddata and orientation hist peak
+    % generate feature from extreme and orientation hist peak
     % add orientations greater than or equal to 80% of the largest orientation magnitude
-    feat_index = addOriFeatures(i,feat_index,ddata,hist);
+    feat_index = addOriFeatures(i,feat_index,extreme,hist);
 end
 %% 描述子
 % number of features
@@ -126,21 +125,17 @@ descr_hist_obins = 8;
 descr_mag_thr = 0.2;
 descr_length = descr_hist_d*descr_hist_d*descr_hist_obins;
 local_features = features;
-local_ddata_array = ddata_array;
-local_gauss_pyr = Gaussian_pyr;
-clear features;
-clear ddata_array;
-clear DOG_pyr;
+local_ddata_array = extreme_array;
 for feat_index = 1:n
     feat = local_features(feat_index);
-    ddata = local_ddata_array(feat.ddata_index);
-    gauss_img = local_gauss_pyr{ddata.octv}(:,:,ddata.layer);
+    extreme = local_ddata_array(feat.extreme_index);
+    gauss_img = Gaussian_pyr{extreme.octv}(:,:,extreme.layer);
 % computes the 2D array of orientation histograms that form the feature descriptor
-    hist_width = 3*ddata.scl_octv;
+    hist_width = 3*extreme.scl_octv;
     radius = round( hist_width * (descr_hist_d + 1) * sqrt(2) / 2 );
     feat_ori = feat.ori;
-    ddata_x = ddata.x;
-    ddata_y = ddata.y;
+    ddata_x = extreme.x;
+    ddata_y = extreme.y;
     hist = zeros(1,descr_length);
     for i = -radius:radius
         for j = -radius:radius
@@ -182,3 +177,7 @@ end
 figure;
 imshow(input);
 viscircles(locs,weights*10,'LineWidth',1);
+hold on
+%annotation('arrow',round(locs(1,:)),round(locs(1,:)+[weights(1).*cos(features(1).ori),weights(1).*sin(features(1).ori)]));
+
+quiver(locs(:,1),locs(:,2),weights.*sin([features.ori]'),weights.*cos([features.ori]'))
