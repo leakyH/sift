@@ -1,0 +1,14 @@
+main;%sift_mark(input);
+input=im2double(imread('lena.bmp'));
+a=round(rand(1,4)*256);
+input2=input(a(1):a(2)+256,a(3):a(4)+256);
+match_mark(input,input2)
+b=rand();
+input3=imresize(input,b);
+match_mark(input,input3);
+c=1./rand();
+input4=imresize(input,c);
+match_mark(input,input4);
+d=rand().*360;
+input5=imrotate(input,d,'bilinear','crop');
+match_mark(input,input5);

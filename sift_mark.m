@@ -1,4 +1,7 @@
-input=im2double(imread('lena.bmp'));
+function [descrs,locs] = sift_mark(input)
+%UNTITLED3 此处显示有关此函数的摘要
+%   此处显示详细说明
+%input=im2double(imread('lena.bmp'));
 %input=rgb2gray(im2double(imread('Iris.tif')));
 %only gray images
 %input=imrotate(imresize(input,0.8),60,'bilinear','crop');
@@ -41,7 +44,7 @@ end
 % 忽略图像边缘的点
 img_border = 5;
 % 特征点对比度阈值
-contr_thr = 0.03;
+contr_thr = 0.02;
 % high threshold on feature ratio of principal curvatures
 curv_thr = 5;
 prelim_contr_thr = 0.5*contr_thr;
@@ -157,10 +160,8 @@ features_scl = [local_features.scl];
 descrs = zeros(n,descr_length);
 weights=zeros(n,1);
 locs = zeros(n,2);
-scl=zeros(n,1);
 for i = 1:n
     weights(i,:) = local_features(features_order(i)).weight;
-    scl(i,:)=local_features(features_order(i)).scl;
     descrs(i,:) = local_features(features_order(i)).descr;
     locs(i,2) = local_features(features_order(i)).x;
     locs(i,1) = local_features(features_order(i)).y;
@@ -170,6 +171,10 @@ end
 %% 在图上标出
 figure;
 imshow(input);
-viscircles(locs,20./scl,'LineWidth',1);
+viscircles(locs,weights*10,'LineWidth',1);
 hold on
-quiver(locs(:,1),locs(:,2),weights.*cos([features.ori]'),weights.*sin([features.ori]'),'LineWidth',2)
+%annotation('arrow',round(locs(1,:)),round(locs(1,:)+[weights(1).*cos(features(1).ori),weights(1).*sin(features(1).ori)]));
+
+quiver(locs(:,1),locs(:,2),weights.*cos([features.ori]'),weights.*sin([features.ori]'))
+end
+
