@@ -1,4 +1,4 @@
-# sift
+# sift 数字图像处理第四次作业-516021910220
 主要文件包括code.m setglobal.m main.m等
 
 main.m中可以指定输入图像进行特征点标记
