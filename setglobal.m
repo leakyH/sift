@@ -11,3 +11,9 @@ ori_hist_bins = 36;
 % orientation magnitude relative to max that results in new feature
 global ori_peak_ratio
 ori_peak_ratio = 0.8;
+% 特征点对比度阈值
+global contr_thr;
+contr_thr = 0.03;
+% 边缘筛选阈值
+global curv_thr;
+curv_thr = 5;d

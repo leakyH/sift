@@ -41,9 +41,9 @@ end
 % 忽略图像边缘的点
 img_border = 5;
 % 特征点对比度阈值
-contr_thr = 0.03;
-% high threshold on feature ratio of principal curvatures
-curv_thr = 5;
+global contr_thr;
+% 边缘筛选阈值
+global curv_thr;
 prelim_contr_thr = 0.5*contr_thr;
 global extreme_array
 extreme_array = struct('x',0,'y',0,'octv',0,'layer',0,'x_hat',[0,0,0],'scl_octv',0);
