@@ -11,3 +11,5 @@ main.m中可以指定输入图像进行特征点标记
 code.m包括图像处理和图像匹配函数。
 
 setglobal.m文件设置了部分全局变量，主要为可调整的参数。
+
+https://github.com/leakyH/sift
